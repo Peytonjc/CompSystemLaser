@@ -7,7 +7,7 @@
 
 
 
-
+;Define names for PortB to use with LCD Functions
 .INCLUDE "M328PDEF.INC"
 .EQU LCD_PRT = PORTB
 .EQU LCD_DDR = DDRB
@@ -16,6 +16,7 @@
 .EQU LCD_RW = 1
 .EQU LCD_EN = 2
 
+;Set up Table for Ascii letters at location 0x300
 .org 0x300
 Ascii:.DB 0b01000001, 0b01000010, 0b01000011, 0b01000100, 0b01000101, 0b01000110, 0b01000111, 0b01001000, 0b01001001, 0b01001010, 0b01001011, 0b01001100, 0b01001101, 0b01001110, 0b01001111, 0b01010000, 0b01010001, 0b01010010, 0b01010011, 0b01010100, 0b01010101, 0b01010110, 0b01010111, 0b01011000, 0b01011001, 0b01011010, 0b00110000, 0b00110001, 0b00110010, 0b00110011, 0b00110100, 0b00110101, 0b00110110, 0b00110111, 0b00111000, 0b00111001
 ;			A			B			C			D			E			F			G			H			I			J			K			L			M			N			O			P			Q			R			S			T			U			V			W			X			Y			Z			0			1			2			3			4			5			6			7			8			9
@@ -26,7 +27,7 @@ Ascii:.DB 0b01000001, 0b01000010, 0b01000011, 0b01000100, 0b01000101, 0b01000110
 .org 0x02
 	JMP PRESS
 
-MAIN:	
+	MAIN:				; Initializes ports, LCD, and flags. Then goes into an infinate loop waiting for an interrupt.
 		ldi r31,0x0a	; Preload binary 00001010 into r31z
 		ldi r17,0x00
 		sts eicra,r31	; Set eicra to 00001010 (both interrupts trigger on active low)
@@ -36,9 +37,8 @@ MAIN:
 		out DDRD,r31	; Set ddrd to 00000000 (all pins of portd are input pins, note you only need pins 2 and 3 for the interrupts)
 		out DDRC,r31
 		ldi r31,0x0c	; Preload binary 00001100 into r31
-		//ldi r31,0x00
 		out PORTD,r31	; Set portd to 00001100 (portd pins 2 and 3 are internally hooked to pull up resistors)
-		sei		; Set enable interrupts
+		sei				; Set enable interrupts
 
 		LDI R21,HIGH(RAMEND)	
 		OUT SPH,R21				;set up stack
@@ -49,9 +49,9 @@ MAIN:
 		OUT LCD_DDR,R21			;LCD data port is output
 		OUT LCD_DDR,R21			;LCD command port is output
 
-		LDI R16, 0x00 ; load 0's into R16
-		OUT DDRC, R16 ; output 1's to configure DDRc as "input" port
-		OUT PORTC, R16 ; output 1's to configure DDRc as "input" port
+		LDI R16, 0x00			;load 0's into R16
+		OUT DDRC, R16			;output 1's to configure DDRc as "input" port
+		OUT PORTC, R16			;output 1's to configure DDRc as "input" port
 
 
 		LDI R16,0X33			;init .LCD for 4-bit data
@@ -71,27 +71,14 @@ MAIN:
 		LDI R16,0X06			;shift curser right
 		CALL CMNDWRT			;call command function
 	
-		/*LDI R16,'F'				;display letter 'H'
-		CALL DATAWRT			;call data write function
-		LDI R16,' '				;display letter 'i'
-		CALL DATAWRT			;call data write function*/
-
-		LDI R18, 0
-		LDI R20, 0
-		/*ldi r19, 0x00
-		CALL LoadZRegister
-		ldi ZL, low(2*Ascii)
-		ldi ZH, high(2*Ascii)
-		ldi r29,0x01
-		add zl,r29 ; add the BCD  value to be converted to low byte of 7SEG CODE TABLE to create an offset numerically equivalent to BCD value 
-		lpm r18,z ; load z into r18 from program memory from7SEG CODE TABLE using modified z register as pointer
-		MOV R16,r18
-		CALL DATAWRT*/
+		
+		LDI R18, 0				;Set Shift Key Flag to 0 (0 -> A-R, 1 -> S-9)
+		LDI R20, 0				;Set Shift Display Counter to 0 (R20 < 5  Hold still, R20 >= 5 Shift Display)
 	
 	HERE:
-		JMP HERE			;stay here
+		JMP HERE				;Stay HERE in an endless loop
 
-	CMNDWRT:
+	CMNDWRT:				;Function for sending commands to the display, see Table in LCD Datasheet for possible commands
 		MOV R27,R16
 		ANDI R27,0XF0
 		IN R26,LCD_PRT
@@ -121,7 +108,7 @@ MAIN:
 		RET
 
 
-	DATAWRT:
+	DATAWRT:				;Function for writing Ascii characters to LCD. Character must be stored in R16
 		MOV R27,R16
 		ANDI R27,0XF0
 		IN R26,LCD_PRT
@@ -148,12 +135,12 @@ MAIN:
 		CALL DELAY_100us	;wait 100 us
 		RET
 
-	SDELAY:
+	SDELAY:					;Function for short delay
 		NOP
 		NOP
 		RET
 
-	DELAY_100us:
+	DELAY_100us:			;Function for 100us delay
 		PUSH R17
 		LDI R17,60
 	DR0: CALL SDELAY
@@ -162,8 +149,7 @@ MAIN:
 		POP R17
 		RET
 
-
-	DELAY_2ms:
+	DELAY_2ms:				;Function for 2ms delay
 		PUSH R17
 		LDI R17,20
 	LDR0: CALL DELAY_100us
@@ -171,19 +157,21 @@ MAIN:
 		BRNE LDR0
 		POP R17
 		RET
-	Press:
+
+
+	Press:					;Interrupt rutine. Reads buttons from PortC, Loads it to the Z register, Writes the data to the LCD, Then performs Display Shift Check
 		CLI
 		CALL LoadPortC
 		CALL LoadZRegister
 		CALL DataWrt
 		LDI R16, 0x01
-		ADD R20, R16
+		ADD R20, R16		;Incriments R20 for every value written to LCD. This is used to check if the display needs to be shifted
 		CALL ShiftDisplayCheck
 BACK:	CLR R16
 		SEI
 		JMP HERE
 
-	LoadPortC:
+	LoadPortC:				;Function to read button presses. Adding a long delay reduces error.
 		LDI R16,0X00
 		OUT DDRC,R16
 		CALL Delay_2ms
@@ -206,13 +194,7 @@ BACK:	CLR R16
 		BREQ ShiftKey
 		RET
 
-	LoadZRegister:
-		/*ldi r19, 0x00
-		ldi ZL, low(2*Ascii)
-		ldi ZH, high(2*Ascii)
-		add zl,r19 ; add the BCD  value to be converted to low byte of 7SEG CODE TABLE to create an offset numerically equivalent to BCD value 
-		lpm r19,z ; load z into r17 from program memory from7SEG CODE TABLE using modified z register as pointer
-		ret*/
+	LoadZRegister:			;Sets up the Z register to find the proper value from the table
 		ldi ZL, low(2*Ascii)
 		ldi ZH, high(2*Ascii)
 		LDI R21,0
@@ -224,7 +206,7 @@ BACK:	CLR R16
 		CALL delay_2ms
 		RET
 
-	ShiftKey:
+	ShiftKey:				;Sets Shift Key flag based on what is already set. (0 -> A-R, 1 -> S-9)
 		LDI R21, 1
 		CP R18, R21
 		BREQ HIGH1
@@ -238,13 +220,14 @@ BACK:	CLR R16
 		ldi R18, 1
 		JMP BACK
 
-	ShiftDisplayCheck:
+	ShiftDisplayCheck:		;Checks to see if the display needs to be shifted by looking at the Display Shift Counter (R20 < 5  Hold still, R20 >= 5 Shift Display)
 		ldi R19, 0x05
 		CP R20, R19
 		BRSH DisplayShift
 		RET	
-	DisplayShift:
-		LDI R16,0x02			;go home
+
+	DisplayShift:			;EXPERIMENTAL. Sending commands to the LCD to tell it to shift the display, and remove the first character
+		LDI R16,0x02			
 		CALL CMNDWRT
 		LDI R16,' '		
 		CALL DATAWRT			;write blank space
