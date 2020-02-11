@@ -21,23 +21,22 @@
 Ascii:.DB 0b01000001, 0b01000010, 0b01000011, 0b01000100, 0b01000101, 0b01000110, 0b01000111, 0b01001000, 0b01001001, 0b01001010, 0b01001011, 0b01001100, 0b01001101, 0b01001110, 0b01001111, 0b01010000, 0b01010001, 0b01010010, 0b01010011, 0b01010100, 0b01010101, 0b01010110, 0b01010111, 0b01011000, 0b01011001, 0b01011010, 0b00110000, 0b00110001, 0b00110010, 0b00110011, 0b00110100, 0b00110101, 0b00110110, 0b00110111, 0b00111000, 0b00111001
 ;			A			B			C			D			E			F			G			H			I			J			K			L			M			N			O			P			Q			R			S			T			U			V			W			X			Y			Z			0			1			2			3			4			5			6			7			8			9
 
-
 .org 0x00 
 	JMP MAIN
 .org 0x02
 	JMP PRESS
 
 	MAIN:				; Initializes ports, LCD, and flags. Then goes into an infinate loop waiting for an interrupt.
-		ldi r31,0x0a	; Preload binary 00001010 into r31z
+		ldi r21,0x0a	; Preload binary 00001010 into r31z
 		ldi r17,0x00
-		sts eicra,r31	; Set eicra to 00001010 (both interrupts trigger on active low)
-		ldi r31,0x03	; Preload binary 00000011 into r31
-		out eimsk,r31	; Set eimsk to 00000011 (enable both interrupts)
-		ldi r31,0x00	; Preload binary 00000000 into r31
-		out DDRD,r31	; Set ddrd to 00000000 (all pins of portd are input pins, note you only need pins 2 and 3 for the interrupts)
-		out DDRC,r31
-		ldi r31,0x0c	; Preload binary 00001100 into r31
-		out PORTD,r31	; Set portd to 00001100 (portd pins 2 and 3 are internally hooked to pull up resistors)
+		sts eicra,r21	; Set eicra to 00001010 (both interrupts trigger on active low)
+		ldi r21,0x03	; Preload binary 00000011 into r31
+		out eimsk,r21	; Set eimsk to 00000011 (enable both interrupts)
+		ldi r21,0x00	; Preload binary 00000000 into r31
+		out DDRD,r21	; Set ddrd to 00000000 (all pins of portd are input pins, note you only need pins 2 and 3 for the interrupts)
+		out DDRC,r21
+		ldi r21,0x0c	; Preload binary 00001100 into r31
+		out PORTD,r21	; Set portd to 00001100 (portd pins 2 and 3 are internally hooked to pull up resistors)
 		sei				; Set enable interrupts
 
 		LDI R21,HIGH(RAMEND)	
@@ -49,9 +48,9 @@ Ascii:.DB 0b01000001, 0b01000010, 0b01000011, 0b01000100, 0b01000101, 0b01000110
 		OUT LCD_DDR,R21			;LCD data port is output
 		OUT LCD_DDR,R21			;LCD command port is output
 
-		LDI R16, 0x00			;load 0's into R16
-		OUT DDRC, R16			;output 1's to configure DDRc as "input" port
-		OUT PORTC, R16			;output 1's to configure DDRc as "input" port
+		LDI R21, 0x00			;load 0's into R21
+		OUT DDRC, R21			;output 1's to configure DDRc as "input" port
+		OUT PORTC, R21			;output 1's to configure DDRc as "input" port
 
 
 		LDI R16,0X33			;init .LCD for 4-bit data
@@ -73,7 +72,10 @@ Ascii:.DB 0b01000001, 0b01000010, 0b01000011, 0b01000100, 0b01000101, 0b01000110
 	
 		
 		LDI R18, 0				;Set Shift Key Flag to 0 (0 -> A-R, 1 -> S-9)
-		LDI R20, 0				;Set Shift Display Counter to 0 (R20 < 5  Hold still, R20 >= 5 Shift Display)
+		LDI R28, ' '			;Initialize Character Buffer Values
+		LDI R29, ' '
+		LDI R23, ' '
+		LDI R24, ' '
 	
 	HERE:
 		JMP HERE				;Stay HERE in an endless loop
@@ -163,13 +165,11 @@ Ascii:.DB 0b01000001, 0b01000010, 0b01000011, 0b01000100, 0b01000101, 0b01000110
 		CLI
 		CALL LoadPortC
 		CALL LoadZRegister
-		CALL DataWrt
-		LDI R16, 0x01
-		ADD R20, R16		;Incriments R20 for every value written to LCD. This is used to check if the display needs to be shifted
-		CALL ShiftDisplayCheck
+		CALL WriteBuff
 BACK:	CLR R16
 		SEI
 		JMP HERE
+		RETI
 
 	LoadPortC:				;Function to read button presses. Adding a long delay reduces error.
 		LDI R16,0X00
@@ -194,18 +194,6 @@ BACK:	CLR R16
 		BREQ ShiftKey
 		RET
 
-	LoadZRegister:			;Sets up the Z register to find the proper value from the table
-		ldi ZL, low(2*Ascii)
-		ldi ZH, high(2*Ascii)
-		LDI R21,0
-		LDI R22,18
-		CPSE R18,R21
-		add r16, R22
-		add zl,r16 ; add the BCD  value to be converted to low byte of 7SEG CODE TABLE to create an offset numerically equivalent to BCD value 
-		lpm r16,z ; load z into r16 from program memory from7SEG CODE TABLE using modified z register as pointer
-		CALL delay_2ms
-		RET
-
 	ShiftKey:				;Sets Shift Key flag based on what is already set. (0 -> A-R, 1 -> S-9)
 		LDI R21, 1
 		CP R18, R21
@@ -220,19 +208,67 @@ BACK:	CLR R16
 		ldi R18, 1
 		JMP BACK
 
-	ShiftDisplayCheck:		;Checks to see if the display needs to be shifted by looking at the Display Shift Counter (R20 < 5  Hold still, R20 >= 5 Shift Display)
-		ldi R19, 0x05
-		CP R20, R19
-		BRSH DisplayShift
-		RET	
 
-	DisplayShift:			;EXPERIMENTAL. Sending commands to the LCD to tell it to shift the display, and remove the first character
-		LDI R16,0x02			
-		CALL CMNDWRT
-		LDI R16,' '		
-		CALL DATAWRT			;write blank space
-		LDI R16,0X18			;shift display left
-		CALL CMNDWRT			;call command function
-		LDI R16,0X84			;send curser back to the right
-		CALL CMNDWRT			;call command function
+	LoadZRegister:			;Sets up the Z register to find the proper value from the table
+		ldi ZL, low(2*Ascii)
+		ldi ZH, high(2*Ascii)
+		LDI R21,0
+		LDI R22,18
+		CPSE R18,R21
+		add r16, R22
+		add zl,r16 ; add the BCD  value to be converted to low byte of 7SEG CODE TABLE to create an offset numerically equivalent to BCD value 
+		lpm r16,z ; load z into r16 from program memory from7SEG CODE TABLE using modified z register as pointer
+		CALL delay_2ms
 		RET
+
+	WriteBuff:			;Writes the value in r16 to our buffer
+		MOV R21, R28
+		CPI R21, ' '
+		BREQ BUF1WR
+		MOV R21, R29
+		CPI R21, ' '
+		BREQ BUF2WR
+		MOV R21, R23
+		CPI R21, ' '
+		BREQ BUF3WR
+		MOV R21, R24
+		CPI R21, ' '
+		BREQ BUF4WR
+		JMP MOVWR
+	WriteBuffHere:
+		CALL delay_2ms
+		JMP BACK
+	BUF1WR:					;Update Buffer 1 with it's first character
+		MOV R28, R16
+		CALL Datawrt
+		JMP WriteBuffHere
+	BUF2WR:					;Update Buffer 2 with it's first character
+		MOV R29, R16
+		CALL Datawrt
+		JMP WriteBuffHere
+	BUF3WR:					;Update Buffer 3 with it's first character
+		MOV R23, R16
+		CALL Datawrt
+		JMP WriteBuffHere
+	BUF4WR:					;Update Buffer 4 with it's first character
+		MOV R24, R16
+		CALL Datawrt
+		JMP WriteBuffHere
+	MOVWR:						;Shift all the buffer values and update the display
+		MOV R28, R29
+		MOV R29, R23
+		MOV R23, R24
+		MOV R24, R16
+		LDI R16,0X01			;send curser back to the far left
+		CALL CMNDWRT			;call command function
+		LDI R16, ' '
+		CALL DATAWRT
+		MOV R16, R28
+		CALL DATAWRT
+		MOV R16, R29
+		CALL DATAWRT
+		MOV R16, R23
+		CALL DATAWRT
+		MOV R16, R24
+		CALL DATAWRT
+		JMP WriteBuffHere
