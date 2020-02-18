@@ -16,10 +16,16 @@
 .EQU LCD_RW = 1
 .EQU LCD_EN = 2
 
+.EQU ModeFlag = 0x600
+
 ;Set up Table for Ascii letters at location 0x300
 .org 0x300
 Ascii:.DB 0b01000001, 0b01000010, 0b01000011, 0b01000100, 0b01000101, 0b01000110, 0b01000111, 0b01001000, 0b01001001, 0b01001010, 0b01001011, 0b01001100, 0b01001101, 0b01001110, 0b01001111, 0b01010000, 0b01010001, 0b01010010, 0b01010011, 0b01010100, 0b01010101, 0b01010110, 0b01010111, 0b01011000, 0b01011001, 0b01011010, 0b00110000, 0b00110001, 0b00110010, 0b00110011, 0b00110100, 0b00110101, 0b00110110, 0b00110111, 0b00111000, 0b00111001
 ;			A			B			C			D			E			F			G			H			I			J			K			L			M			N			O			P			Q			R			S			T			U			V			W			X			Y			Z			0			1			2			3			4			5			6			7			8			9
+
+;Set up Table for Laser Display (First one is a box)
+.org 0x500
+Box:.DB 0b00000101, 0b00000000
 
 .org 0x00 
 	JMP MAIN
@@ -72,6 +78,8 @@ Ascii:.DB 0b01000001, 0b01000010, 0b01000011, 0b01000100, 0b01000101, 0b01000110
 	
 		
 		LDI R18, 0				;Set Shift Key Flag to 0 (0 -> A-R, 1 -> S-9)
+		LDI R21, 0
+		STS ModeFlag, R21			;Set Mode Key Flag to 0 (0 -> keypad, 1 -> laser)
 		LDI R28, ' '			;Initialize Character Buffer Values
 		LDI R29, ' '
 		LDI R23, ' '
@@ -192,6 +200,9 @@ BACK:	CLR R16
 		LDI R21, 0b00010010
 		CP R16, R21 ; Compare the value recieved from the keypad with R21 (it should be the value 18) and see if it is the shift key.
 		BREQ ShiftKey
+		LDI R21, 0b00010011
+		CP R16, R21 ; Compare the value recieved from the keypad with R21 (it should be the value 19) and see if it is the mode key.
+		BREQ ModeKey
 		RET
 
 	ShiftKey:				;Sets Shift Key flag based on what is already set. (0 -> A-R, 1 -> S-9)
@@ -206,6 +217,24 @@ BACK:	CLR R16
 		JMP BACK
 	LOW1:
 		ldi R18, 1
+		JMP BACK
+
+		
+	ModeKey:				;Sets Shift Key flag based on what is already set. (0 -> keypad, 1 -> lasor)
+		LDS R21, ModeKey
+		CPI R21, 1
+		BREQ HIGH2
+		LDS R21, ModeKey
+		CPI R21, 0
+		BREQ LOW2
+	HIGH2:
+		LDI R21, 0
+		STS ModeKey, R21
+		JMP BACK
+	LOW2:
+		LDI R21, 1
+		STS ModeKey, R21
+							;This will be where code for the laser will start.
 		JMP BACK
 
 
