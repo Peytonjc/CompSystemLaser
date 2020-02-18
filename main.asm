@@ -78,15 +78,16 @@ Box:.DB 0b00000101, 0b00000000
 	
 		
 		LDI R18, 0				;Set Shift Key Flag to 0 (0 -> A-R, 1 -> S-9)
-		LDI R21, 0
+		LDI R21, 0x00
 		STS ModeFlag, R21			;Set Mode Key Flag to 0 (0 -> keypad, 1 -> laser)
 		LDI R28, ' '			;Initialize Character Buffer Values
 		LDI R29, ' '
 		LDI R23, ' '
 		LDI R24, ' '
+
 	
 	HERE:
-		JMP HERE				;Stay HERE in an endless loop
+		RJMP HERE				;Stay HERE in an endless loop
 
 	CMNDWRT:				;Function for sending commands to the display, see Table in LCD Datasheet for possible commands
 		MOV R27,R16
@@ -172,11 +173,16 @@ Box:.DB 0b00000101, 0b00000000
 	Press:					;Interrupt rutine. Reads buttons from PortC, Loads it to the Z register, Writes the data to the LCD, Then performs Display Shift Check
 		CLI
 		CALL LoadPortC
+		LDI R21, 0b00010010
+		CP R16, R21 ; Compare the value recieved from the keypad with R21 (it should be the value 18) and see if it is the shift key.
+		BREQ ShiftKey
+		LDI R21, 0b00010011
+		CP R16, R21 ; Compare the value recieved from the keypad with R21 (it should be the value 19) and see if it is the mode key.
+		BREQ ModeKey
 		CALL LoadZRegister
-		CALL WriteBuff
+		RJMP WriteBuff
 BACK:	CLR R16
 		SEI
-		JMP HERE
 		RETI
 
 	LoadPortC:				;Function to read button presses. Adding a long delay reduces error.
@@ -197,12 +203,6 @@ BACK:	CLR R16
 		IN R16,PINC
 		LDI R19, 0b00011111
 		AND R16,R19
-		LDI R21, 0b00010010
-		CP R16, R21 ; Compare the value recieved from the keypad with R21 (it should be the value 18) and see if it is the shift key.
-		BREQ ShiftKey
-		LDI R21, 0b00010011
-		CP R16, R21 ; Compare the value recieved from the keypad with R21 (it should be the value 19) and see if it is the mode key.
-		BREQ ModeKey
 		RET
 
 	ShiftKey:				;Sets Shift Key flag based on what is already set. (0 -> A-R, 1 -> S-9)
@@ -221,20 +221,23 @@ BACK:	CLR R16
 
 		
 	ModeKey:				;Sets Shift Key flag based on what is already set. (0 -> keypad, 1 -> lasor)
-		LDS R21, ModeKey
-		CPI R21, 1
+		LDS R21, ModeFlag
+		CPI R21, 0x01
 		BREQ HIGH2
-		LDS R21, ModeKey
-		CPI R21, 0
+		LDS R21, ModeFlag
+		CPI R21, 0x00
 		BREQ LOW2
 	HIGH2:
-		LDI R21, 0
-		STS ModeKey, R21
+		LDI R16, 'J'
+		CALL DATAWRT		;for testing
+		LDI R21, 0x00
+		STS ModeFlag, R21
 		JMP BACK
 	LOW2:
-		LDI R21, 1
-		STS ModeKey, R21
-							;This will be where code for the laser will start.
+		LDI R21, 0x01
+		STS ModeFlag, R21
+		LDI R16,'K'
+		CALL DATAWRT				;This will be where code for the laser will start.
 		JMP BACK
 
 
@@ -270,19 +273,19 @@ BACK:	CLR R16
 	BUF1WR:					;Update Buffer 1 with it's first character
 		MOV R28, R16
 		CALL Datawrt
-		JMP WriteBuffHere
+		RJMP WriteBuffHere
 	BUF2WR:					;Update Buffer 2 with it's first character
 		MOV R29, R16
 		CALL Datawrt
-		JMP WriteBuffHere
+		RJMP WriteBuffHere
 	BUF3WR:					;Update Buffer 3 with it's first character
 		MOV R23, R16
 		CALL Datawrt
-		JMP WriteBuffHere
+		RJMP WriteBuffHere
 	BUF4WR:					;Update Buffer 4 with it's first character
 		MOV R24, R16
 		CALL Datawrt
-		JMP WriteBuffHere
+		RJMP WriteBuffHere
 	MOVWR:						;Shift all the buffer values and update the display
 		MOV R28, R29
 		MOV R29, R23
@@ -300,4 +303,4 @@ BACK:	CLR R16
 		CALL DATAWRT
 		MOV R16, R24
 		CALL DATAWRT
-		JMP WriteBuffHere
+		RJMP WriteBuffHere
