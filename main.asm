@@ -25,7 +25,8 @@ Ascii:.DB 0b01000001, 0b01000010, 0b01000011, 0b01000100, 0b01000101, 0b01000110
 
 ;Set up Table for Laser Display (First one is a box)
 .org 0x500
-Box:.DB 0b00000101, 0b00000000
+Box:.DB 0x08,	0x00,	0x3C,	0x3D,	0xFF,	0xB4,	0x3D,	0xB4,	0xB4,	0x3C,	0xB5,	0x3C,	0x3D,	0x00
+;		N		OFF		X1		Y1		ON		X2		Y2		X3		Y3		X4		Y4		X5		Y5		OFF
 
 .org 0x00 
 	JMP MAIN
@@ -228,16 +229,13 @@ BACK:	CLR R16
 		CPI R21, 0x00
 		BREQ LOW2
 	HIGH2:
-		LDI R16, 'J'
-		CALL DATAWRT		;for testing
 		LDI R21, 0x00
 		STS ModeFlag, R21
 		JMP BACK
 	LOW2:
 		LDI R21, 0x01
 		STS ModeFlag, R21
-		LDI R16,'K'
-		CALL DATAWRT				;This will be where code for the laser will start.
+		CALL LASWRT				;This will be where code for the laser will start.
 		JMP BACK
 
 
@@ -304,3 +302,60 @@ BACK:	CLR R16
 		MOV R16, R24
 		CALL DATAWRT
 		RJMP WriteBuffHere
+
+	LASWRT:
+		LDI R21, 0xFF
+		OUT DDRC, R21
+		LDI R21, 0x00		;Initialization, Port is set to all 0's
+		OUT PortC, R21
+		LDI R21, 0xFF		;Set PortD as output
+		OUT DDRB, R21
+		LDI R21, 0b00000011 ;Set X and Y -Buffer
+		OUT PortC, R21
+		LDI R21, 0x00		;Clear X and Y -Buffer
+		OUT PortB, R21
+		LDI R21, 0b00000000	;Finish setting X and Y
+		OUT PortC, R21
+	LASHERE:				;Draw the box in a loop
+		CALL SetX
+		LDI R16, 0x00
+		CALL SetLas
+		CALL SetY
+		LDI R16, 0x00
+		CALL SetLas
+		CALL SetX
+		LDI R16, 0x00
+		CALL SetLas
+		CALL SetY
+		LDI R16, 0xFF
+		CALL SetLas
+		CALL SetX
+		LDI R16, 0xFF
+		CALL SetLas
+		CALL SetY
+		LDI R16, 0xFF
+		CALL SetLas
+		CALL SetX
+		LDI R16, 0xFF
+		CALL SetLas
+		CALL SetY
+		LDI R16, 0x00
+		CALL SetLas
+		JMP LASHERE
+
+		
+	SetX:
+		LDI R21, 0b00000001
+		OUT PortC, R21
+		CALL DELAY_100us
+		RET
+	SetY:
+		LDI R21, 0b00000010
+		OUT PortC, R21
+		CALL DELAY_100us
+		RET
+	SetLas:					;Sets the position of the one of the buffers
+		OUT PortB, R16
+		CALL DELAY_100us
+		CALL DELAY_100us
+		RET
