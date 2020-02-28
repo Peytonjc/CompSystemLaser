@@ -25,8 +25,10 @@ Ascii:.DB 0b01000001, 0b01000010, 0b01000011, 0b01000100, 0b01000101, 0b01000110
 
 ;Set up Table for Laser Display (First one is a box)
 .org 0x500
-Box:.DB 0x08,	0x00,	0x3C,	0x3D,	0xFF,	0xB4,	0x3D,	0xB4,	0xB4,	0x3C,	0xB5,	0x3C,	0x3D,	0x00
-;		N		OFF		X1		Y1		ON		X2		Y2		X3		Y3		X4		Y4		X5		Y5		OFF
+Box:.DB 0x04,	0x3C,	0x3D,	0xB4,	0x3D,	0xB4,	0xB4,	0x3C,	0xB5
+;		N		X1		Y1		X2		Y2		X3		Y3		X4		Y4
+.org 0x520
+A:.DB 0x05,		0x02,	0x50,	0x1D,	0xA0,	0x3B,	0x50,	0x2C,	0x78,	0x10,	0x78
 
 .org 0x00 
 	JMP MAIN
@@ -316,33 +318,31 @@ BACK:	CLR R16
 		OUT PortB, R21
 		LDI R21, 0b00000000	;Finish setting X and Y
 		OUT PortC, R21
-	LASHERE:				;Draw the box in a loop
-		CALL SetX
-		LDI R16, 0x00
-		CALL SetLas
-		CALL SetY
-		LDI R16, 0x00
-		CALL SetLas
-		CALL SetX
-		LDI R16, 0x00
-		CALL SetLas
-		CALL SetY
-		LDI R16, 0xFF
-		CALL SetLas
-		CALL SetX
-		LDI R16, 0xFF
-		CALL SetLas
-		CALL SetY
-		LDI R16, 0xFF
-		CALL SetLas
-		CALL SetX
-		LDI R16, 0xFF
-		CALL SetLas
-		CALL SetY
-		LDI R16, 0x00
-		CALL SetLas
-		JMP LASHERE
+	LOOP:
+		LDI R19, 0x00		;Initialize the step counter
+		LDI R16, 0x00;
+		CALL LoadARegister	;Load letter table index value
+		MOV R22, R16
+	LASHERE:				;Use the lasor
+		LDI R21, 0x00
+		CP R22, R21			;Compare the index value to 0 and draw if it isn't equal
+		BRNE Draw
+		RJMP LOOP
 
+	DRAW:
+		LDI R21, 0x01
+		SUB R22, R21		;Decriment the index counter
+		ADD R19, R21		;Increase the step counter
+		MOV R16, R19		;Move the step counter into R16 to be sent to the table lookup
+		CALL LoadARegister
+		CALL SetX			;Set the X position
+		CALL SetLas
+		ADD R19, R21		;Increase the step counter
+		MOV R16, R19		;Move the step counter into R16 to be sent to the table lookup
+		CALL LoadARegister
+		CALL SetY			;Set the Y position
+		CALL SetLas
+		RJMP LASHERE
 		
 	SetX:
 		LDI R21, 0b00000001
@@ -358,4 +358,15 @@ BACK:	CLR R16
 		OUT PortB, R16
 		CALL DELAY_100us
 		CALL DELAY_100us
+		RET
+
+	LoadARegister:			;Sets up the Z register to find the proper value from the table
+		ldi ZL, low(2*A)
+		ldi ZH, high(2*A)
+		LDI R21,0
+		LDI R22,18
+		CPSE R18,R21
+		add r16, R22
+		add zl,r16 ; add the BCD  value to be converted to low byte of 7SEG CODE TABLE to create an offset numerically equivalent to BCD value 
+		lpm r16,z ; load z into r16 from program memory from7SEG CODE TABLE using modified z register as pointer
 		RET
