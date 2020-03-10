@@ -27,8 +27,9 @@ Ascii:.DB 0b01000001, 0b01000010, 0b01000011, 0b01000100, 0b01000101, 0b01000110
 .org 0x500
 Box:.DB 0x04,	0x00,	0x00,	0x00,	0xFF,	0xFF,	0xFF,	0xFF,	0x00
 ;		N		X1		Y1		X2		Y2		X3		Y3		X4		Y4
-.org 0x550
-A:.DB	0x05,		0x02,	0x50,	0x1D,	0xA0,	0x3B,	0x50,	0x2C,	0x78,	0x10,	0x78
+.org 0x510
+A:.DB	0x07,	0x02,	0x50,	0x10,	0x78,	0x1D,	0xA0,	0x2C,	0x78,	0x3B,	0x50,	0x2C,	0x78,	0x10,	0x78
+
 
 .org 0x00 
 	JMP MAIN
@@ -318,78 +319,6 @@ BACK:	CLR R16
 		OUT PortB, R21
 		LDI R21, 0b00000000	;Finish setting X and Y
 		OUT PortC, R21
-	LOOP2:	;0x02,	0x50,	0x1D,	0xA0,	0x3B,	0x50,	0x2C,	0x78,	0x10,	0x78
-		LDI R16, 0x02
-		CALL SetX
-		CALL SetLas
-		LDI R16, 0x50
-		CALL SetY
-		CALL SetLas
-		CALL DELAY_100us
-		CALL DELAY_100us
-		CALL DELAY_100us
-		CALL DELAY_100us
-		LDI R16, 0x10
-		CALL SetX
-		CALL SetLas
-		LDI R16, 0x78
-		CALL SetY
-		CALL SetLas
-		CALL DELAY_100us
-		CALL DELAY_100us
-		CALL DELAY_100us
-		CALL DELAY_100us
-		LDI R16, 0x1D
-		CALL SetX
-		CALL SetLas
-		LDI R16, 0xA0
-		CALL SetY
-		CALL SetLas
-		CALL DELAY_100us
-		CALL DELAY_100us
-		CALL DELAY_100us
-		CALL DELAY_100us
-		LDI R16, 0x2C
-		CALL SetX
-		CALL SetLas
-		LDI R16, 0x78
-		CALL SetY
-		CALL SetLas
-		CALL DELAY_100us
-		CALL DELAY_100us
-		CALL DELAY_100us
-		CALL DELAY_100us
-		LDI R16, 0x3B
-		CALL SetX
-		CALL SetLas
-		LDI R16, 0x50
-		CALL SetY
-		CALL SetLas
-		CALL DELAY_100us
-		CALL DELAY_100us
-		CALL DELAY_100us
-		CALL DELAY_100us
-		LDI R16, 0x2C
-		CALL SetX
-		CALL SetLas
-		LDI R16, 0x78
-		CALL SetY
-		CALL SetLas
-		CALL DELAY_100us
-		CALL DELAY_100us
-		CALL DELAY_100us
-		CALL DELAY_100us
-		LDI R16, 0x10
-		CALL SetX
-		CALL SetLas
-		LDI R16, 0x78
-		CALL SetY
-		CALL SetLas
-		CALL DELAY_100us
-		CALL DELAY_100us
-		CALL DELAY_100us
-		CALL DELAY_100us
-		RJMP LOOP2
 	LOOP:
 		LDI R19, 0x00		;Initialize the step counter
 		LDI R16, 0x00;
@@ -435,12 +364,8 @@ BACK:	CLR R16
 		RET
 
 	LoadARegister:			;Sets up the Z register to find the proper value from the table
-		ldi ZL, low(2*Box)
-		ldi ZH, high(2*Box)
-		LDI R21,0
-		LDI R22,18
-		CPSE R18,R21
-		add r16, R22
+		ldi ZL, low(2*A)
+		ldi ZH, high(2*A)
 		add zl,r16 ; add the BCD  value to be converted to low byte of 7SEG CODE TABLE to create an offset numerically equivalent to BCD value 
 		lpm r16,z ; load z into r16 from program memory from7SEG CODE TABLE using modified z register as pointer
 		RET
