@@ -25,10 +25,10 @@ Ascii:.DB 0b01000001, 0b01000010, 0b01000011, 0b01000100, 0b01000101, 0b01000110
 
 ;Set up Table for Laser Display (First one is a box)
 .org 0x500
-Box:.DB 0x04,	0x3C,	0x3D,	0xB4,	0x3D,	0xB4,	0xB4,	0x3C,	0xB5
+Box:.DB 0x04,	0x00,	0x00,	0x00,	0xFF,	0xFF,	0xFF,	0xFF,	0x00
 ;		N		X1		Y1		X2		Y2		X3		Y3		X4		Y4
-.org 0x520
-A:.DB 0x05,		0x02,	0x50,	0x1D,	0xA0,	0x3B,	0x50,	0x2C,	0x78,	0x10,	0x78
+.org 0x550
+A:.DB	0x05,		0x02,	0x50,	0x1D,	0xA0,	0x3B,	0x50,	0x2C,	0x78,	0x10,	0x78
 
 .org 0x00 
 	JMP MAIN
@@ -318,6 +318,78 @@ BACK:	CLR R16
 		OUT PortB, R21
 		LDI R21, 0b00000000	;Finish setting X and Y
 		OUT PortC, R21
+	LOOP2:	;0x02,	0x50,	0x1D,	0xA0,	0x3B,	0x50,	0x2C,	0x78,	0x10,	0x78
+		LDI R16, 0x02
+		CALL SetX
+		CALL SetLas
+		LDI R16, 0x50
+		CALL SetY
+		CALL SetLas
+		CALL DELAY_100us
+		CALL DELAY_100us
+		CALL DELAY_100us
+		CALL DELAY_100us
+		LDI R16, 0x10
+		CALL SetX
+		CALL SetLas
+		LDI R16, 0x78
+		CALL SetY
+		CALL SetLas
+		CALL DELAY_100us
+		CALL DELAY_100us
+		CALL DELAY_100us
+		CALL DELAY_100us
+		LDI R16, 0x1D
+		CALL SetX
+		CALL SetLas
+		LDI R16, 0xA0
+		CALL SetY
+		CALL SetLas
+		CALL DELAY_100us
+		CALL DELAY_100us
+		CALL DELAY_100us
+		CALL DELAY_100us
+		LDI R16, 0x2C
+		CALL SetX
+		CALL SetLas
+		LDI R16, 0x78
+		CALL SetY
+		CALL SetLas
+		CALL DELAY_100us
+		CALL DELAY_100us
+		CALL DELAY_100us
+		CALL DELAY_100us
+		LDI R16, 0x3B
+		CALL SetX
+		CALL SetLas
+		LDI R16, 0x50
+		CALL SetY
+		CALL SetLas
+		CALL DELAY_100us
+		CALL DELAY_100us
+		CALL DELAY_100us
+		CALL DELAY_100us
+		LDI R16, 0x2C
+		CALL SetX
+		CALL SetLas
+		LDI R16, 0x78
+		CALL SetY
+		CALL SetLas
+		CALL DELAY_100us
+		CALL DELAY_100us
+		CALL DELAY_100us
+		CALL DELAY_100us
+		LDI R16, 0x10
+		CALL SetX
+		CALL SetLas
+		LDI R16, 0x78
+		CALL SetY
+		CALL SetLas
+		CALL DELAY_100us
+		CALL DELAY_100us
+		CALL DELAY_100us
+		CALL DELAY_100us
+		RJMP LOOP2
 	LOOP:
 		LDI R19, 0x00		;Initialize the step counter
 		LDI R16, 0x00;
@@ -342,27 +414,29 @@ BACK:	CLR R16
 		CALL LoadARegister
 		CALL SetY			;Set the Y position
 		CALL SetLas
+		CALL DELAY_100us
+		CALL DELAY_100us
+		CALL DELAY_100us
+		CALL DELAY_100us
 		RJMP LASHERE
 		
 	SetX:
 		LDI R21, 0b00000001
 		OUT PortC, R21
-		CALL DELAY_100us
+		;CALL DELAY_100us
 		RET
 	SetY:
 		LDI R21, 0b00000010
 		OUT PortC, R21
-		CALL DELAY_100us
+		;CALL DELAY_100us
 		RET
 	SetLas:					;Sets the position of the one of the buffers
 		OUT PortB, R16
-		CALL DELAY_100us
-		CALL DELAY_100us
 		RET
 
 	LoadARegister:			;Sets up the Z register to find the proper value from the table
-		ldi ZL, low(2*A)
-		ldi ZH, high(2*A)
+		ldi ZL, low(2*Box)
+		ldi ZH, high(2*Box)
 		LDI R21,0
 		LDI R22,18
 		CPSE R18,R21
